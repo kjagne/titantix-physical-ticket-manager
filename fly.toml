@@ -29,6 +29,5 @@ primary_region = 'cdg'
   cpus = 1
 
 [mounts]
-  source = "titantix_data"
+  source = "data"
   destination = "/data"
-  initial_size = "1gb"
