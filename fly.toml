@@ -1,4 +1,8 @@
-# Fly.io configuration for Titantix Physical Ticket Manager
+# fly.toml app configuration file generated for titantix-physical-ticket-manager on 2025-11-04T02:37:48Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
 app = 'titantix-physical-ticket-manager'
 primary_region = 'cdg'
 
@@ -8,6 +12,10 @@ primary_region = 'cdg'
   NODE_ENV = 'production'
   PORT = '8080'
 
+[[mounts]]
+  source = 'data'
+  destination = '/data'
+
 [http_service]
   internal_port = 8080
   force_https = true
@@ -16,18 +24,5 @@ primary_region = 'cdg'
   min_machines_running = 0
   processes = ['app']
 
-  [[http_service.checks]]
-    grace_period = "10s"
-    interval = "30s"
-    method = "GET"
-    timeout = "5s"
-    path = "/api/stats"
-
 [[vm]]
-  memory = '256mb'
-  cpu_kind = 'shared'
-  cpus = 1
-
-[mounts]
-  source = "data"
-  destination = "/data"
+  size = 'shared-cpu-1x'
