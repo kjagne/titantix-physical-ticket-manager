@@ -269,8 +269,13 @@ app.delete('/api/designs/:id', authMiddleware, (req, res) => {
 
 // Catch-all route to serve frontend in production
 if (isProduction) {
-  app.get('/*', (req, res) => {
-    res.sendFile(join(__dirname, 'dist', 'index.html'));
+  app.use((req, res, next) => {
+    // If no API route matched, serve the frontend
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(join(__dirname, 'dist', 'index.html'));
+    } else {
+      next();
+    }
   });
 }
 
