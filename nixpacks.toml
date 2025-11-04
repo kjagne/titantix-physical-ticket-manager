@@ -4,8 +4,5 @@ nixPkgs = ["nodejs_20", "python3"]
 [phases.install]
 cmds = ["npm ci"]
 
-[phases.build]
-cmds = ["npm run build", "ls -la dist"]
-
 [start]
-cmd = "node server.js"
+cmd = "npm start"
