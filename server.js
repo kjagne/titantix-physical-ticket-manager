@@ -29,7 +29,9 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // In production, serve the built frontend
 if (isProduction) {
-  app.use(express.static(join(__dirname, 'dist')));
+  const distPath = join(__dirname, 'dist');
+  console.log('📁 Serving static files from:', distPath);
+  app.use(express.static(distPath));
 } else {
   app.use(express.static('.')); // Serve static files from current directory in dev
 }
@@ -272,7 +274,14 @@ if (isProduction) {
   app.use((req, res, next) => {
     // If no API route matched, serve the frontend
     if (!req.path.startsWith('/api')) {
-      res.sendFile(join(__dirname, 'dist', 'index.html'));
+      const indexPath = join(__dirname, 'dist', 'index.html');
+      console.log('📄 Serving index.html from:', indexPath);
+      res.sendFile(indexPath, (err) => {
+        if (err) {
+          console.error('❌ Error serving index.html:', err);
+          res.status(500).send('Frontend not built. Run npm run build.');
+        }
+      });
     } else {
       next();
     }
