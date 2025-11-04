@@ -4,6 +4,7 @@ import cors from 'cors';
 import { ticketDb } from './server-db.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { existsSync, readdirSync } from 'fs';
 import { 
   hashPassword, 
   comparePassword, 
@@ -35,11 +36,10 @@ if (isProduction) {
   
   // Check if dist exists
   try {
-    const fs = await import('fs');
-    const distExists = fs.existsSync(distPath);
+    const distExists = existsSync(distPath);
     console.log('📁 Dist folder exists:', distExists);
     if (distExists) {
-      const files = fs.readdirSync(distPath);
+      const files = readdirSync(distPath);
       console.log('📁 Files in dist:', files);
     }
   } catch (err) {
@@ -58,7 +58,7 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     environment: isProduction ? 'production' : 'development',
-    distExists: require('fs').existsSync(join(__dirname, 'dist')),
+    distExists: existsSync(join(__dirname, 'dist')),
     distPath: join(__dirname, 'dist')
   });
 });
