@@ -2,9 +2,10 @@
 import { Ticket, TicketTypeInfo } from '../types';
 
 // Use environment variable in production, localhost in development
+// In production, use same origin (Railway serves both frontend and backend)
 const API_URL = import.meta.env.VITE_API_URL 
   ? `${import.meta.env.VITE_API_URL}/api`
-  : 'http://localhost:4000/api';
+  : (import.meta.env.PROD ? '/api' : 'http://localhost:4000/api');
 
 export interface TicketDesign {
   id: string;
