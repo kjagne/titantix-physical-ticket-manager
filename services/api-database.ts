@@ -3,9 +3,13 @@ import { Ticket, TicketTypeInfo } from '../types';
 
 // Use environment variable in production, localhost in development
 // In production, use same origin (Railway serves both frontend and backend)
+// Check if we're on localhost, if not, use relative path
+const isLocalhost = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
 const API_URL = import.meta.env.VITE_API_URL 
   ? `${import.meta.env.VITE_API_URL}/api`
-  : (import.meta.env.PROD ? '/api' : 'http://localhost:4000/api');
+  : (isLocalhost ? 'http://localhost:4000/api' : '/api');
 
 export interface TicketDesign {
   id: string;
