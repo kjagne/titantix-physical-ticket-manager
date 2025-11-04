@@ -1,0 +1,5 @@
+{
+  "name": "TitanTix Physical Ticket Manager",
+  "description": "A robust application for generating, selling, and validating secure physical tickets for events. Features batch generation, printable ticket layouts with security features, a point-of-sale interface, and a gate scanning simulator.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Check Database</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        button {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 8px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Database Inspector</h1>
+    <button onclick="checkDatabase()">Check Database</button>
+    <div id="result"></div>
+
+    <script>
+        async function checkDatabase() {
+            const result = document.getElementById('result');
+            result.textContent = 'Checking database...';
+
+            try {
+                // List all databases
+                const databases = await indexedDB.databases();
+                result.textContent = 'Available databases:\n' + JSON.stringify(databases, null, 2);
+
+                // Try to open TitantixDB
+                const request = indexedDB.open('TitantixDB');
+                
+                request.onsuccess = () => {
+                    const db = request.result;
+                    const stores = Array.from(db.objectStoreNames);
+                    
+                    result.textContent += '\n\nTitantixDB object stores:\n' + JSON.stringify(stores, null, 2);
+                    
+                    if (stores.includes('tickets')) {
+                        const transaction = db.transaction('tickets', 'readonly');
+                        const store = transaction.objectStore('tickets');
+                        const countRequest = store.count();
+                        
+                        countRequest.onsuccess = () => {
+                            result.textContent += '\n\nTickets count: ' + countRequest.result;
+                            
+                            if (countRequest.result > 0) {
+                                const getAllRequest = store.getAll();
+                                getAllRequest.onsuccess = () => {
+                                    result.textContent += '\n\nFirst ticket:\n' + JSON.stringify(getAllRequest.result[0], null, 2);
+                                };
+                            } else {
+                                result.textContent += '\n\n⚠️ No tickets found! Please generate tickets in the web app first.';
+                            }
+                        };
+                    } else {
+                        result.textContent += '\n\n⚠️ No "tickets" store found! The database needs to be initialized by the web app.';
+                    }
+                };
+                
+                request.onerror = () => {
+                    result.textContent += '\n\nError opening database: ' + request.error;
+                };
+            } catch (error) {
+                result.textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

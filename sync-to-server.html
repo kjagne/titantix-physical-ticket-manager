@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sync Tickets to Server</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        button {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background: #4f46e5;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background: #2a2a2a;
+        }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+    </style>
+</head>
+<body>
+    <h1>🎫 Sync Tickets to API Server</h1>
+    <p>This will send all tickets from IndexedDB to the API server so the Flutter app can download them.</p>
+    
+    <button onclick="syncTickets()">📤 Sync Tickets to Server</button>
+    <button onclick="checkStats()">📊 Check Server Stats</button>
+    
+    <div id="status"></div>
+
+    <script>
+        const API_URL = 'http://localhost:4000'; // API server on port 4000
+
+        async function syncTickets() {
+            const status = document.getElementById('status');
+            status.innerHTML = '⏳ Loading tickets from IndexedDB...';
+
+            try {
+                // Open IndexedDB
+                const db = await openDatabase();
+                const tickets = await getAllTickets(db);
+
+                if (tickets.length === 0) {
+                    status.innerHTML = '<span class="error">❌ No tickets found in IndexedDB. Please generate tickets first in the web app.</span>';
+                    return;
+                }
+
+                status.innerHTML = `✓ Found ${tickets.length} tickets in IndexedDB<br>📤 Sending to server...`;
+
+                // Add stubColor to each ticket if missing
+                const ticketsWithColor = tickets.map(ticket => ({
+                    ...ticket,
+                    stubColor: ticket.stubColor || '#F3F1EC'
+                }));
+
+                // Send to API server
+                const response = await fetch(`${API_URL}/api/tickets/bulk`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tickets: ticketsWithColor })
+                });
+
+                const result = await response.json();
+                
+                status.innerHTML = `<span class="success">✅ Success! Synced ${result.count} tickets to server</span><br><br>` +
+                    `Ticket Details:<br>` +
+                    `- Total: ${result.count}<br>` +
+                    `- Types: ${[...new Set(ticketsWithColor.map(t => t.ticketTypeName))].join(', ')}<br><br>` +
+                    `<strong>Now open the Flutter app and tap "SYNC TICKETS FROM SERVER"</strong>`;
+            } catch (error) {
+                status.innerHTML = `<span class="error">❌ Error: ${error.message}</span><br>` +
+                    `Make sure the API server is running on port 3000`;
+            }
+        }
+
+        async function checkStats() {
+            const status = document.getElementById('status');
+            try {
+                const response = await fetch(`${API_URL}/api/stats`);
+                const stats = await response.json();
+                
+                status.innerHTML = `
+                    <h3>Server Statistics:</h3>
+                    <p>Total Tickets: ${stats.total}</p>
+                    <p>Used: ${stats.used}</p>
+                    <p>Sold: ${stats.sold}</p>
+                    <p>Unsold: ${stats.unsold}</p>
+                `;
+            } catch (error) {
+                status.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        function openDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('TitantixDB', 1);
+                
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+                
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    
+                    // Create tickets store if it doesn't exist
+                    if (!db.objectStoreNames.contains('tickets')) {
+                        const ticketStore = db.createObjectStore('tickets', { keyPath: 'serial' });
+                        ticketStore.createIndex('token', 'token', { unique: true });
+                        ticketStore.createIndex('status', 'status', { unique: false });
+                        ticketStore.createIndex('printBatchId', 'printBatchId', { unique: false });
+                    }
+                };
+            });
+        }
+
+        function getAllTickets(db) {
+            return new Promise((resolve, reject) => {
+                try {
+                    const transaction = db.transaction('tickets', 'readonly');
+                    const store = transaction.objectStore('tickets');
+                    const request = store.getAll();
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

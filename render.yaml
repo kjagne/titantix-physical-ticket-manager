@@ -1,0 +1,29 @@
+services:
+  # Backend API Server
+  - type: web
+    name: titantix-api
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+    disk:
+      name: titantix-db
+      mountPath: /opt/render/project/src
+      sizeGB: 1
+
+  # Frontend Web App
+  - type: web
+    name: titantix-web
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: titantix-api
+          envVarKey: RENDER_EXTERNAL_URL
