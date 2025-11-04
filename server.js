@@ -51,6 +51,18 @@ if (isProduction) {
   app.use(express.static('.')); // Serve static files from current directory in dev
 }
 
+// ==================== HEALTH CHECK ====================
+
+// GET /health - Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    environment: isProduction ? 'production' : 'development',
+    distExists: require('fs').existsSync(join(__dirname, 'dist')),
+    distPath: join(__dirname, 'dist')
+  });
+});
+
 // ==================== AUTHENTICATION ROUTES ====================
 
 // POST /api/auth/register - Register new user
