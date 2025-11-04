@@ -14,7 +14,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final DatabaseService _dbService = DatabaseService();
   bool _isLoading = false;
   Map<String, int> _stats = {};
-  String _syncUrl = 'http://192.168.100.144:4000'; // API server on port 4000
+  String _syncUrl = 'https://titantix-physical-ticket-manager.fly.dev'; // Fly.io API server
 
   @override
   void initState() {

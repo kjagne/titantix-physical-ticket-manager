@@ -20,7 +20,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   String? _lastScannedCode;
   String _deviceId = '';
   Map<String, int> _stats = {};
-  String _syncUrl = 'http://192.168.100.144:4000'; // API server URL
+  String _syncUrl = 'https://titantix-physical-ticket-manager.fly.dev'; // Fly.io API server
 
   @override
   void initState() {
