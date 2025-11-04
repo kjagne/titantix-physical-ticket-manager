@@ -6,12 +6,8 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Create database file in persistent directory (Fly.io uses /data)
-const dbPath = process.env.NODE_ENV === 'production' && process.env.FLY_APP_NAME
-  ? '/data/titantix.db'
-  : join(__dirname, 'titantix.db');
-
-const db = new Database(dbPath);
+// Create database file in server directory
+const db = new Database(join(__dirname, 'titantix.db'));
 
 // Initialize database schema
 db.exec(`
