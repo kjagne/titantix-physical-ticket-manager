@@ -269,7 +269,7 @@ app.delete('/api/designs/:id', authMiddleware, (req, res) => {
 
 // Catch-all route to serve frontend in production
 if (isProduction) {
-  app.get('*', (req, res) => {
+  app.get('/*', (req, res) => {
     res.sendFile(join(__dirname, 'dist', 'index.html'));
   });
 }
