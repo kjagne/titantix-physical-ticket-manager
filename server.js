@@ -31,6 +31,21 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 if (isProduction) {
   const distPath = join(__dirname, 'dist');
   console.log('📁 Serving static files from:', distPath);
+  console.log('📁 Current directory:', __dirname);
+  
+  // Check if dist exists
+  try {
+    const fs = await import('fs');
+    const distExists = fs.existsSync(distPath);
+    console.log('📁 Dist folder exists:', distExists);
+    if (distExists) {
+      const files = fs.readdirSync(distPath);
+      console.log('📁 Files in dist:', files);
+    }
+  } catch (err) {
+    console.error('❌ Error checking dist folder:', err);
+  }
+  
   app.use(express.static(distPath));
 } else {
   app.use(express.static('.')); // Serve static files from current directory in dev
