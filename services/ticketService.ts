@@ -14,8 +14,9 @@ const base64Encode = (str: string): string => {
 };
 
 // A simple (and insecure) hash function to simulate a signature
+// Optimized to reuse encoder
+const encoder = new TextEncoder();
 const simpleHash = async (data: string): Promise<string> => {
-    const encoder = new TextEncoder();
     const dataBuffer = encoder.encode(data);
     const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));

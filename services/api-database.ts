@@ -102,6 +102,27 @@ class ApiDatabaseService {
     return response.json();
   }
 
+  async getTicketsPaginated(page: number = 1, limit: number = 50): Promise<{
+    tickets: Ticket[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }> {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_URL}/tickets/paginated?page=${page}&limit=${limit}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch paginated tickets');
+    }
+    return response.json();
+  }
+
   async getTicketsByBatch(batchId: string): Promise<Ticket[]> {
     const tickets = await this.getAllTickets();
     return tickets.filter(t => t.printBatchId === batchId);

@@ -49,9 +49,10 @@ const App: React.FC = () => {
         return <TicketGenerator 
           generateTickets={ticketManager.generateTickets} 
           lastGeneratedBatch={ticketManager.lastGeneratedBatch} 
-          allTickets={ticketManager.tickets}
+          ticketCount={ticketManager.ticketCount}
           deleteTicket={ticketManager.deleteTicket}
           deleteAllTickets={ticketManager.deleteAllTickets}
+          refreshTicketCount={ticketManager.refreshTicketCount}
         />;
       case 'sell':
         return <BoxOffice sellTicket={ticketManager.sellTicket} />;
@@ -61,9 +62,10 @@ const App: React.FC = () => {
         return <TicketGenerator 
           generateTickets={ticketManager.generateTickets} 
           lastGeneratedBatch={ticketManager.lastGeneratedBatch} 
-          allTickets={ticketManager.tickets}
+          ticketCount={ticketManager.ticketCount}
           deleteTicket={ticketManager.deleteTicket}
           deleteAllTickets={ticketManager.deleteAllTickets}
+          refreshTicketCount={ticketManager.refreshTicketCount}
         />;
     }
   };

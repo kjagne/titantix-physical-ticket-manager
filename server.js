@@ -25,8 +25,15 @@ await createDefaultAdmin();
 
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '50mb' })); // Increase payload limit for images
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '100mb' })); // Increase payload limit for large ticket batches
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
+
+// Increase server timeout for large operations
+app.use((req, res, next) => {
+  req.setTimeout(600000); // 10 minutes for very large batches
+  res.setTimeout(600000); // 10 minutes
+  next();
+});
 
 // In production, serve the built frontend
 if (isProduction) {
@@ -183,6 +190,31 @@ app.get('/api/tickets', (req, res) => {
   }
 });
 
+// GET /api/tickets/paginated - Get tickets with pagination (protected)
+app.get('/api/tickets/paginated', authMiddleware, (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = (page - 1) * limit;
+    
+    const tickets = ticketDb.getTicketsPaginated(limit, offset);
+    const stats = ticketDb.getStats();
+    
+    res.json({
+      tickets,
+      pagination: {
+        page,
+        limit,
+        total: stats.total,
+        totalPages: Math.ceil(stats.total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching paginated tickets:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // POST /api/tickets/sync - Upload used tickets from offline scans
 app.post('/api/tickets/sync', (req, res) => {
   try {
@@ -215,12 +247,37 @@ app.post('/api/tickets/sync', (req, res) => {
 app.post('/api/tickets/bulk', authMiddleware, (req, res) => {
   try {
     const { tickets: newTickets } = req.body;
-    const count = ticketDb.insertTickets(newTickets);
-    console.log(`✓ Saved ${count} tickets to database`);
+    
+    if (!newTickets || !Array.isArray(newTickets)) {
+      return res.status(400).json({ error: 'Invalid tickets data' });
+    }
+    
+    if (newTickets.length === 0) {
+      return res.json({ success: true, count: 0 });
+    }
+    
+    console.log(`📥 Receiving ${newTickets.length} tickets for bulk insert...`);
+    const startTime = Date.now();
+    
+    // Validate ticket data before inserting
+    const validTickets = newTickets.filter(t => t.serial && t.token && t.ticketTypeName);
+    if (validTickets.length !== newTickets.length) {
+      console.warn(`⚠️  Filtered out ${newTickets.length - validTickets.length} invalid tickets`);
+    }
+    
+    const count = ticketDb.insertTickets(validTickets);
+    
+    const duration = Date.now() - startTime;
+    console.log(`✅ Saved ${count} tickets to database in ${duration}ms (${Math.round(count / (duration / 1000))} tickets/sec)`);
+    
     res.json({ success: true, count });
   } catch (error) {
-    console.error('Error saving tickets:', error);
-    res.status(500).json({ error: error.message });
+    console.error('❌ Error saving tickets:', error);
+    // Send more detailed error for debugging
+    res.status(500).json({ 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 

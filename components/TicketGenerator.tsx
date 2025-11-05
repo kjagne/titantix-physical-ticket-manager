@@ -6,15 +6,16 @@ import { TicketPrintLayout } from './TicketPrintLayout';
 import { TicketView } from './TicketView';
 import { useDesignManager } from '../hooks/useDesignManager';
 import { Toast } from './Toast';
-import { AllTicketsView } from './AllTicketsView';
+import { AllTicketsViewPaginated } from './AllTicketsViewPaginated';
 
 
 interface TicketGeneratorProps {
-  generateTickets: (ticketTypes: TicketTypeInfo[]) => Promise<void>;
+  generateTickets: (ticketTypes: TicketTypeInfo[], onProgress?: (current: number, total: number) => void) => Promise<void>;
   lastGeneratedBatch: Ticket[];
-  allTickets: Ticket[];
+  ticketCount: number;
   deleteTicket: (serial: string) => Promise<void>;
   deleteAllTickets: () => Promise<void>;
+  refreshTicketCount: () => Promise<void>;
   backgroundImageUrl?: string;
   imageScale?: number;
   imagePositionX?: number;
@@ -43,9 +44,10 @@ const ImageIcon: React.FC<{className?: string}> = ({ className }) => (
 export const TicketGenerator: React.FC<TicketGeneratorProps> = ({ 
   generateTickets, 
   lastGeneratedBatch, 
-  allTickets, 
+  ticketCount,
   deleteTicket,
   deleteAllTickets,
+  refreshTicketCount,
   backgroundImageUrl: propBackgroundImageUrl,
   imageScale: propImageScale,
   imagePositionX: propImagePositionX,
@@ -55,6 +57,7 @@ export const TicketGenerator: React.FC<TicketGeneratorProps> = ({
     { id: `type-${Date.now()}`, name: 'Ordinary', quantity: 20, price: 50, stubColor: '#F3F1EC' },
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [backgroundImageUrl, setBackgroundImageUrl] = useState<string>('');
   const [imageScale, setImageScale] = useState<number>(100);
   const [imagePositionX, setImagePositionX] = useState<number>(50);
@@ -90,14 +93,35 @@ export const TicketGenerator: React.FC<TicketGeneratorProps> = ({
 
   const handleGenerateClick = async () => {
      setIsLoading(true);
+     setProgress({ current: 0, total: 0 });
      try {
-       await generateTickets(ticketTypes);
        const totalTickets = ticketTypes.reduce((acc, curr) => acc + Number(curr.quantity || 0), 0);
+       
+       // Warn user for very large batches
+       if (totalTickets > 5000) {
+         const confirmed = window.confirm(
+           `You are about to generate ${totalTickets} tickets. This may take several minutes. Continue?`
+         );
+         if (!confirmed) {
+           setIsLoading(false);
+           return;
+         }
+       }
+       
+       setProgress({ current: 0, total: totalTickets });
+       
+       await generateTickets(ticketTypes, (current, total) => {
+         setProgress({ current, total });
+       });
+       
        showToast(`✓ ${totalTickets} tickets generated and saved to database with unique QR codes!`, 'success');
      } catch (error) {
-       showToast('Failed to generate tickets', 'error');
+       console.error('Generation error:', error);
+       showToast(error instanceof Error ? error.message : 'Failed to generate tickets', 'error');
+     } finally {
+       setIsLoading(false);
+       setProgress(null);
      }
-     setIsLoading(false);
   }
   
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -183,11 +207,11 @@ export const TicketGenerator: React.FC<TicketGeneratorProps> = ({
       printBatchId: 'preview-batch',
   };
 
-  // If viewing all tickets, show the dedicated screen
+  // Show paginated view for all tickets
   if (showAllTickets) {
     return (
-      <AllTicketsView
-        tickets={allTickets}
+      <AllTicketsViewPaginated
+        ticketCount={ticketCount}
         backgroundImageUrl={backgroundImageUrl}
         imageScale={imageScale}
         imagePositionX={imagePositionX}
@@ -205,7 +229,7 @@ export const TicketGenerator: React.FC<TicketGeneratorProps> = ({
               <div>
                 <h2 className="text-3xl font-bold text-white">Ticket Batch Generator</h2>
                 <p className="text-sm text-gray-400 mt-1">
-                  Total tickets in database: <span className="font-semibold text-blue-400">{allTickets.length}</span>
+                  Total tickets in database: <span className="font-semibold text-blue-400">{ticketCount}</span>
                 </p>
               </div>
               <div className="flex gap-3">
@@ -213,14 +237,15 @@ export const TicketGenerator: React.FC<TicketGeneratorProps> = ({
                   onClick={() => setShowAllTickets(true)}
                   className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
                 >
-                  🎫 View All Tickets ({allTickets.length})
+                  🎫 View All Tickets ({ticketCount})
                 </button>
-                {allTickets.length > 0 && (
+                {ticketCount > 0 && (
                   <button
                     onClick={async () => {
-                      if (window.confirm(`Are you sure you want to delete ALL ${allTickets.length} tickets? This action cannot be undone!`)) {
+                      if (window.confirm(`Are you sure you want to delete ALL ${ticketCount} tickets? This action cannot be undone!`)) {
                         try {
                           await deleteAllTickets();
+                          await refreshTicketCount();
                           showToast('All tickets deleted successfully!', 'success');
                         } catch (error) {
                           showToast('Failed to delete tickets', 'error');
@@ -377,7 +402,9 @@ export const TicketGenerator: React.FC<TicketGeneratorProps> = ({
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Generating...
+                      {progress && progress.total > 0 
+                        ? `Generating... ${progress.current}/${progress.total} (${Math.round((progress.current / progress.total) * 100)}%)`
+                        : 'Generating...'}
                       </>
                   ) : (
                       `Generate ${totalTickets} Tickets`

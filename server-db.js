@@ -64,17 +64,20 @@ console.log('✅ Server database initialized: titantix.db');
 
 // Database operations
 export const ticketDb = {
-  // Insert multiple tickets
+  // Insert multiple tickets (optimized for large batches)
   insertTickets: (tickets) => {
+    if (!tickets || tickets.length === 0) return 0;
+    
     const insert = db.prepare(`
       INSERT OR REPLACE INTO tickets 
       (serial, token, ticketTypeName, price, status, stubColor, printBatchId, createdAt, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
+    // Use a transaction for atomic batch insertion
     const insertMany = db.transaction((tickets) => {
+      const now = new Date().toISOString();
       for (const ticket of tickets) {
-        const now = new Date().toISOString();
         insert.run(
           ticket.serial,
           ticket.token,
@@ -89,6 +92,11 @@ export const ticketDb = {
       }
     });
 
+    // Execute the transaction with WAL mode for better concurrency
+    db.pragma('journal_mode = WAL');
+    db.pragma('synchronous = NORMAL');
+    
+    // Execute the transaction
     insertMany(tickets);
     return tickets.length;
   },
@@ -96,6 +104,12 @@ export const ticketDb = {
   // Get all tickets
   getAllTickets: () => {
     return db.prepare('SELECT * FROM tickets ORDER BY createdAt DESC').all();
+  },
+
+  // Get tickets with pagination (for large datasets)
+  getTicketsPaginated: (limit, offset) => {
+    return db.prepare('SELECT * FROM tickets ORDER BY createdAt DESC LIMIT ? OFFSET ?')
+      .all(limit, offset);
   },
 
   // Get ticket by serial

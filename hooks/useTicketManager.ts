@@ -6,17 +6,18 @@ import { db, TicketBatch } from '../services/api-database';
 export const useTicketManager = () => {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [lastGeneratedBatch, setLastGeneratedBatch] = useState<Ticket[]>([]);
+  const [ticketCount, setTicketCount] = useState<number>(0);
   const [isDbReady, setIsDbReady] = useState(false);
 
-  // Initialize database and load existing tickets
+  // Initialize database (don't load all tickets to avoid memory issues)
   useEffect(() => {
     const initDb = async () => {
       try {
         await db.init();
-        const existingTickets = await db.getAllTickets();
-        setTickets(existingTickets);
+        // Load ticket count only, not all tickets
+        await refreshTicketCount();
         setIsDbReady(true);
-        console.log('Database initialized. Loaded', existingTickets.length, 'tickets.');
+        console.log('Database initialized.');
       } catch (error) {
         console.error('Failed to initialize database:', error);
       }
@@ -24,47 +25,124 @@ export const useTicketManager = () => {
     initDb();
   }, []);
 
-  const generateTickets = useCallback(async (ticketTypes: TicketTypeInfo[]) => {
-    const newTickets: Ticket[] = [];
-    const printBatchId = `BATCH-${Date.now()}`;
+  const refreshTicketCount = useCallback(async () => {
+    try {
+      const stats = await db.getStats();
+      setTicketCount(stats.totalTickets);
+    } catch (error) {
+      console.error('Failed to get ticket count:', error);
+    }
+  }, []);
 
+  const generateTickets = useCallback(async (
+    ticketTypes: TicketTypeInfo[],
+    onProgress?: (current: number, total: number) => void
+  ) => {
+    const allNewTickets: Ticket[] = [];
+    const printBatchId = `BATCH-${Date.now()}`;
+    const BATCH_SIZE = 50; // Reduced from 100 to 50 for better stability
+    const MAX_RETRIES = 3;
+    
+    // Calculate total tickets to generate
+    const totalTickets = ticketTypes.reduce((acc, type) => acc + type.quantity, 0);
+    let processedCount = 0;
+
+    // Helper function to save tickets with retry logic
+    const saveTicketsWithRetry = async (tickets: Ticket[], retryCount = 0): Promise<void> => {
+      try {
+        await db.saveTickets(tickets);
+      } catch (error) {
+        if (retryCount < MAX_RETRIES) {
+          console.warn(`Retry ${retryCount + 1}/${MAX_RETRIES} for saving ${tickets.length} tickets...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))); // Exponential backoff
+          return saveTicketsWithRetry(tickets, retryCount + 1);
+        }
+        throw error;
+      }
+    };
+
+    // Generate tickets in batches to avoid memory issues
     for (const type of ticketTypes) {
-      for (let i = 0; i < type.quantity; i++) {
-        const serial = generateSerial(type.name);
-        const token = await generateSignedToken(serial);
-        newTickets.push({
-          serial,
-          token,
-          status: TicketStatus.SOLD, // Tickets are SOLD by default (ready to scan)
-          ticketTypeName: type.name,
-          price: type.price,
-          printBatchId,
-          stubColor: type.stubColor,
-        });
+      const quantity = type.quantity;
+      
+      // Process this ticket type in chunks
+      for (let offset = 0; offset < quantity; offset += BATCH_SIZE) {
+        const chunkSize = Math.min(BATCH_SIZE, quantity - offset);
+        
+        // Generate tickets for this chunk
+        const ticketsWithTokens: Ticket[] = [];
+        
+        // Generate serials and tokens sequentially in smaller batches to reduce memory pressure
+        for (let i = 0; i < chunkSize; i++) {
+          const serial = generateSerial(type.name);
+          const token = await generateSignedToken(serial);
+          
+          ticketsWithTokens.push({
+            serial,
+            token,
+            status: TicketStatus.SOLD,
+            ticketTypeName: type.name,
+            price: type.price,
+            printBatchId,
+            stubColor: type.stubColor,
+          });
+        }
+        
+        // Save this chunk to database immediately with retry logic
+        try {
+          await saveTicketsWithRetry(ticketsWithTokens);
+          
+          // Only keep last batch in memory, not all tickets
+          if (offset + chunkSize >= quantity && type === ticketTypes[ticketTypes.length - 1]) {
+            // This is the last chunk of the last type, keep for preview
+            allNewTickets.push(...ticketsWithTokens);
+          }
+          
+          processedCount += chunkSize;
+          
+          // Report progress
+          if (onProgress) {
+            onProgress(processedCount, totalTickets);
+          }
+          
+          console.log(`✓ Saved chunk: ${processedCount}/${totalTickets} tickets (${Math.round((processedCount / totalTickets) * 100)}%)`);
+          
+          // Small delay to prevent overwhelming the server
+          if (processedCount < totalTickets) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+          }
+        } catch (error) {
+          console.error('Failed to save ticket chunk after retries:', error);
+          throw new Error(`Failed to save tickets at ${processedCount}/${totalTickets}. Please try again.`);
+        }
       }
     }
 
-    // Save tickets to database
+    // Save batch info
     try {
-      await db.saveTickets(newTickets);
-      
-      // Save batch info
       const batch: TicketBatch = {
         id: `batch-${Date.now()}`,
         batchId: printBatchId,
-        ticketCount: newTickets.length,
+        ticketCount: totalTickets,
         createdAt: new Date().toISOString(),
       };
       await db.saveBatch(batch);
       
-      console.log(`Saved ${newTickets.length} tickets to database in batch ${printBatchId}`);
+      console.log(`✅ Completed: ${totalTickets} tickets in batch ${printBatchId}`);
     } catch (error) {
-      console.error('Failed to save tickets to database:', error);
+      console.error('Failed to save batch info:', error);
     }
 
-    setTickets(prev => [...prev, ...newTickets]);
-    setLastGeneratedBatch(newTickets);
-  }, []);
+    // Only keep last few tickets for preview to save memory
+    const previewTickets = allNewTickets.slice(-10);
+    setLastGeneratedBatch(previewTickets);
+    
+    // Clear tickets state to free memory
+    setTickets([]);
+    
+    // Refresh ticket count for display
+    await refreshTicketCount();
+  }, [refreshTicketCount]);
 
   const findTicket = useCallback((serial: string) => {
     const cleanedSerial = serial.toUpperCase().trim();
@@ -211,12 +289,14 @@ export const useTicketManager = () => {
   return {
     tickets,
     lastGeneratedBatch,
+    ticketCount,
     generateTickets,
     sellTicket,
     scanTicket,
     findTicket,
     deleteTicket,
     deleteAllTickets,
+    refreshTicketCount,
     isDbReady,
   };
 };

@@ -57,15 +57,13 @@ export const TicketView: React.FC<TicketViewProps> = ({
             {/* Gradient overlay for better text readability */}
             <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-transparent"></div>
             
-            {/* Vertical Text on Left Side */}
-            <div className="relative z-10 h-full flex items-center">
-              <h2 className="ticket-vertical-text text-base font-semibold text-white drop-shadow-2xl tracking-wide whitespace-nowrap" 
-                 style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
-                Misma la diva
-              </h2>
-              <h2 className="ticket-vertical-text text-base font-semibold text-white drop-shadow-2xl tracking-wide whitespace-nowrap" 
-                 style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
+            {/* Vertical Text on Left Side - Horizontal text stacked vertically */}
+            <div className="absolute bottom-4 left-4 z-10">
+              <h2 className="ticket-vertical-text text-base font-semibold text-white drop-shadow-2xl tracking-wide whitespace-nowrap">
                 Nana Jiguela (Believe)
+              </h2>
+              <h2 className="ticket-vertical-text text-base font-semibold text-white drop-shadow-2xl tracking-wide whitespace-nowrap">
+                Misma la diva
               </h2>
             </div>
             
@@ -91,18 +89,17 @@ export const TicketView: React.FC<TicketViewProps> = ({
 
 
         {/* Stub part (Right) with QR Code */}
-        <div className="text-black w-48 p-4 flex flex-row justify-between items-center shrink-0" style={{ backgroundColor: stubColor }}>
+        <div className="text-black w-48 p-4 flex flex-col justify-center items-center shrink-0" style={{ backgroundColor: stubColor }}>
             {/* QR Code - Larger for scanning */}
-            <div className="flex flex-col items-center justify-center flex-1">
+            <div className="flex flex-col items-center justify-center">
               <div className="bg-white p-2 rounded-xl shadow-2xl">
                 <img src={qrCodeUrl} alt="QR Code" className="w-40 h-40" />
               </div>
             </div>
             
-            {/* Serial Number (Vertical) - Pushed to right edge */}
-            <div className="flex items-center ml-2">
-              <p className="ticket-vertical-text text-[11px] font-mono font-bold text-gray-900 tracking-wide" 
-                 style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
+            {/* Serial Number (Horizontal) - Below QR code */}
+            <div className="flex items-center justify-center mt-1">
+              <p className="ticket-vertical-text text-[11px] font-mono font-bold text-gray-900 tracking-wide text-center">
                 {ticket.serial}
               </p>
             </div>
