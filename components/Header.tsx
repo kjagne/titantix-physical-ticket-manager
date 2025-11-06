@@ -5,7 +5,7 @@ import { GenerateIcon } from './icons/GenerateIcon';
 import { SellIcon } from './icons/SellIcon';
 import { ScanIcon } from './icons/ScanIcon';
 
-type View = 'generate' | 'sell' | 'scan';
+type View = 'generate' | 'sell' | 'scan' | 'database';
 
 interface HeaderProps {
   currentView: View;
@@ -62,6 +62,12 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, user,
                 icon={<ScanIcon className="h-5 w-5" />}
                 isActive={currentView === 'scan'}
                 onClick={() => onViewChange('scan')}
+              />
+              <NavButton
+                label="Database"
+                icon={<span className="text-lg">💾</span>}
+                isActive={currentView === 'database'}
+                onClick={() => onViewChange('database')}
               />
             </nav>
 

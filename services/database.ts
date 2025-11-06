@@ -252,6 +252,80 @@ class DatabaseService {
       totalBatches: batches.length,
     };
   }
+
+  // ==================== BACKUP & RESTORE ====================
+
+  async exportDatabase(): Promise<string> {
+    const [tickets, designs, batches] = await Promise.all([
+      this.getAllTickets(),
+      this.getAllDesigns(),
+      this.getAllBatches(),
+    ]);
+
+    const backup = {
+      version: DB_VERSION,
+      exportDate: new Date().toISOString(),
+      data: {
+        tickets,
+        designs,
+        batches,
+      },
+    };
+
+    return JSON.stringify(backup, null, 2);
+  }
+
+  async importDatabase(jsonData: string): Promise<{ 
+    tickets: number; 
+    designs: number; 
+    batches: number; 
+  }> {
+    const backup = JSON.parse(jsonData);
+    
+    if (!backup.data) {
+      throw new Error('Invalid backup file format');
+    }
+
+    const { tickets = [], designs = [], batches = [] } = backup.data;
+
+    // Import in batches to avoid memory issues
+    const BATCH_SIZE = 100;
+    
+    // Import tickets
+    for (let i = 0; i < tickets.length; i += BATCH_SIZE) {
+      const batch = tickets.slice(i, i + BATCH_SIZE);
+      await this.saveTickets(batch);
+    }
+
+    // Import designs
+    for (const design of designs) {
+      await this.saveDesign(design);
+    }
+
+    // Import batches
+    for (const batch of batches) {
+      await this.saveBatch(batch);
+    }
+
+    return {
+      tickets: tickets.length,
+      designs: designs.length,
+      batches: batches.length,
+    };
+  }
+
+  async downloadBackup(): Promise<void> {
+    const jsonData = await this.exportDatabase();
+    const blob = new Blob([jsonData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `titantix-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 }
 
 // Singleton instance

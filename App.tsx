@@ -5,9 +5,10 @@ import { TicketGenerator } from './components/TicketGenerator';
 import { BoxOffice } from './components/BoxOffice';
 import { GateScanner } from './components/GateScanner';
 import { Login } from './components/Login';
+import { DatabaseManager } from './components/DatabaseManager';
 import { useTicketManager } from './hooks/useTicketManager';
 
-type View = 'generate' | 'sell' | 'scan';
+type View = 'generate' | 'sell' | 'scan' | 'database';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('generate');
@@ -58,6 +59,8 @@ const App: React.FC = () => {
         return <BoxOffice sellTicket={ticketManager.sellTicket} />;
       case 'scan':
         return <GateScanner scanTicket={ticketManager.scanTicket} />;
+      case 'database':
+        return <DatabaseManager />;
       default:
         return <TicketGenerator 
           generateTickets={ticketManager.generateTickets} 

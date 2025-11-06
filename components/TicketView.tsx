@@ -69,11 +69,11 @@ export const TicketView: React.FC<TicketViewProps> = ({
             
             {/* Ticket Info at Bottom Right */}
             <div className="absolute bottom-4 right-4 z-10">
-              <div className="bg-black/20 backdrop-blur-sm px-3 py-1.5 rounded-md">
-                <p className="text-sm text-white font-semibold">
+            
+                <p className="text-sm text-black font-semibold">
                   {ticket.ticketTypeName} • GMD {ticket.price}
                 </p>
-              </div>
+             
             </div>
         </div>
 
